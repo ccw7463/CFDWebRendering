@@ -34,7 +34,7 @@ function initBoilerPlate(){
   /**
    * Creates a program from 2 shaders.
    *
-   * @param {!WebGLRenderingContext) gl The WebGL context.
+   * @param {!WebGLRenderingContext} gl The WebGL context.
    * @param {!WebGLShader} vertexShader A vertex shader.
    * @param {!WebGLShader} fragmentShader A fragment shader.
    * @return {!WebGLProgram} A program.

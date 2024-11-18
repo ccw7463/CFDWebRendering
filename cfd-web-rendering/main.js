@@ -201,7 +201,6 @@ function render(){
                 [obstaclePosition[0]*width/actualWidth, 
                  obstaclePosition[1]*height/actualHeight], "2f");
             
-            // 렌더링 프로그램에도 업데이트된 위치 전달
             GPU.setProgram("render");
             GPU.setUniformForProgram("render", "u_obstaclePosition", 
                 [obstaclePosition[0], obstaclePosition[1]], "2f");

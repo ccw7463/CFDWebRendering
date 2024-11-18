@@ -1,12 +1,5 @@
-/**
- * Created by ghassaei on 2/24/16.
- */
-
-
 function initGPUMath(){
-
     var glBoilerplate = initBoilerPlate();
-
     var canvas = document.getElementById("glcanvas");
     var gl = canvas.getContext("webgl", {antialias:false}) || canvas.getContext("experimental-webgl", {antialias:false});
     var ext = gl.getExtension("OES_texture_half_float") || gl.getExtension("EXT_color_buffer_half_float");

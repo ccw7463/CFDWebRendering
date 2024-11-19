@@ -77,11 +77,6 @@ canvas {
     padding: 20px;
 }
 
-.sliderInput{
-    float:right;
-    display: inline-block;
-    margin-bottom:15px;
-}
 .sliderContainer{
     display: block;
     margin-bottom:15px;
@@ -108,11 +103,6 @@ a.btn:visited, a.btn:focus{
 input.form-control {
     width: 80px;
     display: inline-block;
-}
-
-.radioSlider{
-    display: inline-block;
-    float:right;
 }
 
 .floatRight{

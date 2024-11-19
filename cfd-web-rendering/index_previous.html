@@ -34,31 +34,25 @@
         uniform float u_scale;
         uniform vec2 u_textureSize;
 
-        uniform vec2 u_obstaclePosition[10]; //scaled to texture size
-        uniform float u_obstacleRad[10];
-        uniform int u_obstacleCount;
+        uniform vec2 u_obstaclePosition; //scaled to texture size
+        uniform float u_obstacleRad;
 
         void main() {
             vec2 fragCoord = gl_FragCoord.xy;
 
-            // 장애물 처리
-            for (int i = 0; i < 10; i++) { // 최대 10개의 장애물 처리
-                if (i >= u_obstacleCount) break; // 실제 장애물 개수까지만 반복
-
-                vec2 dir = fragCoord - 3.0 * vec2(0.5, 0.5) - u_obstaclePosition[i];
-                float dist = length(dir);
-
-                if (dist < u_obstacleRad[i]) {
-                    gl_FragColor = vec4(0); // 장애물 내부는 검은색
-                    return;
-                }
-
-                if (dist < u_obstacleRad[i] + 1.0) {
-                    gl_FragColor = u_scale * texture2D(u_texture, (fragCoord + dir / dist * 2.0) / u_textureSize);
-                    return;
-                }
-            }
+            vec2 dir = fragCoord - 3.0*vec2(0.5, 0.5) - u_obstaclePosition;
+            float dist = length(dir);
             
+            if (dist < u_obstacleRad){
+                gl_FragColor = vec4(0);
+                return;
+            }
+
+            if (dist < u_obstacleRad+1.0){
+                gl_FragColor = u_scale*texture2D(u_texture, (fragCoord + dir/dist*2.0)/u_textureSize);
+                return;
+            }
+
             gl_FragColor = texture2D(u_texture, fragCoord/u_textureSize);
         }
     </script>
@@ -67,11 +61,10 @@
         precision mediump float;
 
         uniform sampler2D u_material;
-        uniform vec2 u_obstaclePosition[10];
+        uniform vec2 u_obstaclePosition;
         uniform vec2 u_textureSize;
-        uniform float u_obstacleRad[10];
-        uniform int u_obstacleCount;
-
+        uniform float u_obstacleRad;
+        
         // 바람 효과를 위한 색상 그라데이션 함수
         vec3 windColor(float intensity) {
             // 더 진한 하늘색 계열의 그라데이션
@@ -91,65 +84,12 @@
             vec2 fragCoord = gl_FragCoord.xy;
             
             // 장애물 처리
-            vec2 dir = fragCoord - vec2(0.5, 0.5) - u_obstaclePosition[1];
+            vec2 dir = fragCoord - vec2(0.5, 0.5) - u_obstaclePosition;
             float dist = length(dir);
-
-            if (dist < u_obstacleRad[1]) {
-                gl_FragColor = vec4(0.05, 0.1, 0.25, 1.0); // 장애물 내부
+            if (dist < u_obstacleRad) {
+                // 장애물은 더 진한 남색으로 표현
+                gl_FragColor = vec4(0.05, 0.1, 0.25, 1.0);
                 return;
-            }   
-            
-            // 유체 흐름 처리
-            float mat1 = texture2D(u_material, fragCoord/u_textureSize).x;
-            
-            // 바람 효과 적용
-            vec3 flowColor = windColor(mat1);
-            
-            // 알파값을 높여서 더 진하게 표현
-            float alpha = mat1 * 0.98 + 0.15;
-            
-            gl_FragColor = vec4(flowColor, alpha);
-        }
-    </script>
-
-    <!-- <script id="2d-render-shader" type="x-shader/x-fragment">
-        precision mediump float;
-
-        uniform sampler2D u_material;
-        uniform vec2 u_obstaclePosition[10];
-        uniform vec2 u_textureSize;
-        uniform float u_obstacleRad[10];
-        uniform int u_obstacleCount;
-
-        // 바람 효과를 위한 색상 그라데이션 함수
-        vec3 windColor(float intensity) {
-            // 더 진한 하늘색 계열의 그라데이션
-            vec3 lightWind = vec3(0.8, 0.9, 1.0);    // 연한 하늘색
-            vec3 mediumWind = vec3(0.5, 0.7, 0.9);   // 중간 하늘색
-            vec3 strongWind = vec3(0.3, 0.5, 0.8);   // 진한 하늘색
-            
-            if (intensity < 0.3) {
-                return mix(vec3(0.9, 0.95, 1.0), lightWind, intensity * 3.3);
-            } else if (intensity < 0.6) {
-                return mix(lightWind, mediumWind, (intensity - 0.3) * 3.3);
-            }
-            return mix(mediumWind, strongWind, (intensity - 0.6) * 2.5);
-        }
-        
-        void main() {
-            vec2 fragCoord = gl_FragCoord.xy;
-            
-            // 장애물 처리
-            for (int i = 0; i < 10; i++) { // 최대 10개의 장애물 처리 가능
-                if (i >= u_obstacleCount) break; // 실제 장애물 개수만큼만 반복
-
-                vec2 dir = fragCoord - vec2(0.5, 0.5) - u_obstaclePosition[i];
-                float dist = length(dir);
-
-                if (dist < u_obstacleRad[i]) {
-                    gl_FragColor = vec4(0.05, 0.1, 0.25, 1.0); // 장애물 내부
-                    return;
-                }   
             }
             
             // 유체 흐름 처리
@@ -164,7 +104,7 @@
             gl_FragColor = vec4(flowColor, alpha);
         }
     </script>
-     -->
+
     <script id="gradientSubtractionShader" type="x-shader/x-fragment">
         precision mediump float;
 

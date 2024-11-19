@@ -3,7 +3,7 @@ let actualWidth, actualHeight; // 실제 화면 너비와 높이
 const scale = 3.5; // 스케일값
 
 let obstaclePosition = [0,0]; // 장애물 위치
-const obstacleRad = 20; // 장애물 반지름
+const obstacleRad = 30; // 장애물 반지름
 let movingObstacle = false; // 장애물 움직이는지 여부
 
 let lastMouseCoordinates =  [0,0]; // 마지막 마우스 좌표
@@ -117,7 +117,7 @@ function resetWindow(){
     console.log(`시뮬레이션 계산 높이 [height] : ${height}`);
 
     // 장애물 초기 위치 (너비의 1/10, 높이의 1/2)
-    obstaclePosition = [actualWidth/10, actualHeight/2];
+    obstaclePosition = [actualWidth/2.5, actualHeight/2];
     console.log(`obstaclePosition : ${obstaclePosition}`);
 
     // 드로잉 버퍼 사이즈를 실제 값과 맞춤
@@ -246,7 +246,8 @@ function updateObstaclePosition(){
 // 마우스 이동 이벤트 핸들러
 function onMouseMove(e){
     lastMouseCoordinates = mouseCoordinates; // 마지막 마우스 좌표값 <- 현재 마우스 좌표값
-    mouseCoordinates = [e.clientX-63, actualHeight-e.clientY+186]; // 현재 마우스 좌표값 <- 위치값 수정 (container 태그안에 넣었기 때문에 위치변경되었음)
+    const canvasRect = canvas.getBoundingClientRect();
+    mouseCoordinates = [e.clientX-canvasRect.left, actualHeight-e.clientY+canvasRect.top]; // 현재 마우스 좌표값 <- 위치값 수정 (container 태그안에 넣었기 때문에 위치변경되었음)
     updateObstaclePosition(); // 장애물 위치 업데이트
 }
 

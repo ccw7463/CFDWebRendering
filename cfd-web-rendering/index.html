@@ -3,387 +3,68 @@
 <head>
     <meta charset="UTF-8">
     <title>2D Fluid Simulation</title>
-
     <meta name="viewport" content="width=400">
 
-    <link rel="stylesheet" type="text/css" href="dependencies/bootstrap.min.css">
-    <link rel="stylesheet" type="text/css" href="dependencies/flat-ui.min.css">
-    <link rel="stylesheet" type="text/css" href="main.css">
-
+    <link rel="stylesheet" type="text/css" href="public/css/bootstrap.min.css">
+    <link rel="stylesheet" type="text/css" href="public/css/flat-ui.min.css">
+    <link rel="stylesheet" type="text/css" href="public/css/main.css">
     <script id="2d-vertex-shader" type="x-shader/x-vertex">
-
         attribute vec2 a_position;
-
         void main() {
            gl_Position = vec4(a_position, 0, 1);
         }
     </script>
-
-    <script id="resetVelocityShader" type="x-shader/x-fragment">
-        precision mediump float;
-
-        void main() {
-            gl_FragColor = vec4(1.0, 0.0, 0.0, 0.0);
-        }
-    </script>
-
-    <script id="boundaryConditionsShader" type="x-shader/x-fragment">
-        precision mediump float;
-
-        uniform sampler2D u_texture;
-        uniform float u_scale;
-        uniform vec2 u_textureSize;
-
-        uniform vec2 u_obstaclePosition;//scaled to texture size
-        uniform float u_obstacleRad;
-
-        void main() {
-            vec2 fragCoord = gl_FragCoord.xy;
-
-            vec2 dir = fragCoord - 3.0*vec2(0.5, 0.5) - u_obstaclePosition;
-            float dist = length(dir);
-            
-            if (dist < u_obstacleRad){
-                gl_FragColor = vec4(0);
-                return;
-            }
-
-            if (dist < u_obstacleRad+1.0){
-                gl_FragColor = u_scale*texture2D(u_texture, (fragCoord + dir/dist*2.0)/u_textureSize);
-                return;
-            }
-
-            gl_FragColor = texture2D(u_texture, fragCoord/u_textureSize);
-        }
-    </script>
-
-    <script id="2d-render-shader" type="x-shader/x-fragment">
-        precision mediump float;
-
-        uniform sampler2D u_material;
-        uniform vec2 u_obstaclePosition;
-        uniform vec2 u_textureSize;
-        uniform float u_obstacleRad;
-        
-        vec3 windColor(float intensity) {
-            // 기본 색상 정의
-            vec3 lightWind = vec3(0.85, 0.95, 1.0);   // 매우 연한 하늘색
-            vec3 mediumWind = vec3(0.6, 0.8, 0.95);   // 중간 하늘색
-            vec3 strongWind = vec3(0.4, 0.6, 0.9);    // 진한 하늘색
-            vec3 veryStrongWind = vec3(0.2, 0.4, 0.8); // 매우 진한 하늘색
-            
-            // 그라데이션 효과 생성
-            if (intensity < 0.25) {
-                return mix(vec3(0.95, 0.98, 1.0), lightWind, intensity * 4.0);
-            } else if (intensity < 0.5) {
-                return mix(lightWind, mediumWind, (intensity - 0.25) * 4.0);
-            } else if (intensity < 0.75) {
-                return mix(mediumWind, strongWind, (intensity - 0.5) * 4.0);
-            }
-            return mix(strongWind, veryStrongWind, (intensity - 0.75) * 4.0);
-        }
-
-        void main() {
-            vec2 fragCoord = gl_FragCoord.xy;
-            
-            // 장애물 처리
-            vec2 dir = fragCoord - vec2(0.5, 0.5) - u_obstaclePosition;
-            float dist = length(dir);
-            if (dist < u_obstacleRad) {
-                // 장애물은 더 진한 남색으로 표현
-                gl_FragColor = vec4(0.05, 0.1, 0.25, 1.0);
-                return;
-            }
-            
-            // 유체 흐름 처리
-            float mat1 = texture2D(u_material, fragCoord/u_textureSize).x;
-            
-            // 바람 효과 적용
-            vec3 flowColor = windColor(mat1);
-            
-            // 알파값을 높여서 더 진하게 표현
-            float alpha = mat1 * 0.95 + 0.2;  // 알파값 약간 증가
-
-            gl_FragColor = vec4(flowColor, alpha);
-        }
-    </script>
-
-    <script id="gradientSubtractionShader" type="x-shader/x-fragment">
-        precision mediump float;
-
-        uniform sampler2D u_velocity;
-        uniform sampler2D u_pressure;
-
-        uniform vec2 u_textureSize;
-
-        uniform float u_const;
-
-        vec2 repeatBoundary(vec2 coord){
-            coord -= vec2(0.5, 0.5);
-            //if (coord.x < 0.0) coord.x = u_textureSize.x-1.0;
-            if (coord.x >= u_textureSize.x-1.0) coord.x = 0.0;
-            if (coord.y < 0.0) coord.y = u_textureSize.y-1.0;
-            else if (coord.y >= u_textureSize.y-1.0) coord.y = 0.0;
-            coord += vec2(0.5, 0.5);
-            return coord;
-        }
-
-        void main() {
-
-            vec2 fragCoord = gl_FragCoord.xy;
-
-            vec2 currentVelocity = texture2D(u_velocity, fragCoord/u_textureSize).xy;
-
-            float n = texture2D(u_pressure, repeatBoundary(fragCoord+vec2(0.0, 1.0))/u_textureSize).x;
-            float s = texture2D(u_pressure, repeatBoundary(fragCoord+vec2(0.0, -1.0))/u_textureSize).x;
-            float e = texture2D(u_pressure, (fragCoord+vec2(1.0, 0.0))/u_textureSize).x;
-            float w = texture2D(u_pressure, (fragCoord+vec2(-1.0, 0.0))/u_textureSize).x;
-
-            gl_FragColor = vec4(currentVelocity-u_const*vec2(e-w, n-s), 0, 0);
-        }
-    </script>
-
-    <script id="divergenceShader" type="x-shader/x-fragment">
-        precision mediump float;
-
-        uniform sampler2D u_velocity;
-
-        uniform vec2 u_textureSize;
-
-        uniform float u_const;
-
-        vec2 repeatBoundary(vec2 coord){
-            coord -= vec2(0.5, 0.5);
-            if (coord.x < 0.0) coord.x = u_textureSize.x-1.0;
-            else if (coord.x >= u_textureSize.x-1.0) coord.x = 0.0;
-            if (coord.y < 0.0) coord.y = u_textureSize.y-1.0;
-            else if (coord.y >= u_textureSize.y-1.0) coord.y = 0.0;
-            coord += vec2(0.5, 0.5);
-            return coord;
-        }
-
-        void main() {
-
-            vec2 fragCoord = gl_FragCoord.xy;
-
-            //finite difference formulation of divergence
-
-            //periodic boundary
-
-            float n = texture2D(u_velocity, repeatBoundary(fragCoord+vec2(0.0, 1.0))/u_textureSize).y;
-            float s = texture2D(u_velocity, repeatBoundary(fragCoord+vec2(0.0, -1.0))/u_textureSize).y;
-
-            float e = texture2D(u_velocity, repeatBoundary(fragCoord+vec2(1.0, 0.0))/u_textureSize).x;
-            float w = texture2D(u_velocity, (fragCoord+vec2(-1.0, 0.0))/u_textureSize).x;
-
-            float div = u_const*(e-w + n-s);
-            gl_FragColor = vec4(div, 0, 0, 0);
-        }
-    </script>
-
-    <script id="forceShader" type="x-shader/x-fragment">
-        precision mediump float;
-
-        uniform sampler2D u_velocity;
-
-        uniform vec2 u_textureSize;
-
-        uniform vec2 u_mouseCoord;
-        uniform vec2 u_mouseDir;
-
-        uniform float u_reciprocalRadius;
-
-        uniform float u_dt;
-
-        void main() {
-
-            vec2 fragCoord = gl_FragCoord.xy;
-
-            vec2 currentVelocity = texture2D(u_velocity, fragCoord/u_textureSize).xy;
-
-            vec2 pxDist = fragCoord - u_mouseCoord;
-            currentVelocity += u_mouseDir*u_dt*exp(-(pxDist.x*pxDist.x+pxDist.y*pxDist.y)*u_reciprocalRadius);
-
-            gl_FragColor = vec4(currentVelocity, 0, 0);
-        }
-    </script>
-
-    <script id="jacobiShader" type="x-shader/x-fragment">
-        precision mediump float;
-
-        uniform sampler2D u_b;
-        uniform sampler2D u_x;
-
-        uniform vec2 u_textureSize;
-
-        uniform float u_alpha;
-        uniform float u_reciprocalBeta;
-
-        void main() {
-
-            vec2 fragCoord = gl_FragCoord.xy;
-
-            vec2 currentState = texture2D(u_b, fragCoord/u_textureSize).xy;
-
-            //implicitly solve diffusion via jacobi iteration
-
-            vec2 n = texture2D(u_x, (fragCoord+vec2(0.0, 1.0))/u_textureSize).xy;
-            vec2 s = texture2D(u_x, (fragCoord+vec2(0.0, -1.0))/u_textureSize).xy;
-            vec2 e = texture2D(u_x, (fragCoord+vec2(1.0, 0.0))/u_textureSize).xy;
-            vec2 w = texture2D(u_x, (fragCoord+vec2(-1.0, 0.0))/u_textureSize).xy;
-
-            vec2 nextState = (n + s + e + w + u_alpha * currentState) * u_reciprocalBeta;
-
-            gl_FragColor = vec4(nextState, 0, 0);
-        }
-   </script>
-
-    <script id="advectShaderMat" type="x-shader/x-fragment">
-        precision mediump float;
-
-        uniform sampler2D u_velocity;
-        uniform sampler2D u_material;
-
-        uniform vec2 u_textureSize;
-        uniform float u_scale;
-
-        uniform float u_dt;
-
-        vec2 bilinearInterp(vec2 pos, sampler2D texture, vec2 size){
-            //bilinear interp between nearest cells
-
-            vec2 pxCenter = vec2(0.5, 0.5);
-
-            vec2 ceiled = ceil(pos);
-            vec2 floored = floor(pos);
-
-            vec2 n = texture2D(texture, (ceiled+pxCenter)/size).xy;//actually ne
-            vec2 s = texture2D(texture, (floored+pxCenter)/size).xy;//actually sw
-            if (ceiled.x != floored.x){
-                vec2 se = texture2D(texture, (vec2(ceiled.x, floored.y)+pxCenter)/size).xy;
-                vec2 nw = texture2D(texture, (vec2(floored.x, ceiled.y)+pxCenter)/size).xy;
-                n = n*(pos.x-floored.x) + nw*(ceiled.x-pos.x);
-                s = se*(pos.x-floored.x) + s*(ceiled.x-pos.x);
-            }
-            vec2 materialVal = n;
-            if (ceiled.y != floored.y){
-                materialVal = n*(pos.y-floored.y) + s*(ceiled.y-pos.y);
-            }
-            return materialVal;
-        }
-
-        void main() {
-
-            vec2 fragCoord = gl_FragCoord.xy;
-
-            vec2 pxCenter = vec2(0.5, 0.5);
-
-            //bilinear interp
-            //vec2 currentVelocity = 1.0/u_scale*texture2D(u_velocity, fragCoord/u_textureSize).xy;
-            vec2 currentVelocity = 1.0/u_scale*bilinearInterp((fragCoord-pxCenter)*u_scale + pxCenter, u_velocity, u_textureSize*u_scale);
-
-            //implicitly solve advection
-
-            if (fragCoord.x < 1.0){//boundary
-                float numCols = floor(u_textureSize.y/10.0);
-                if (mod(numCols, 2.0) == 1.0) numCols--;
-                float numPx = u_textureSize.y/numCols;
-                if (floor(mod((fragCoord.y-2.0)/numPx, 2.0)) == 0.0) gl_FragColor = vec4(1, 0, 0, 0);
-                else gl_FragColor = vec4(0, 0, 0, 0);
-                return;
-            }
-            if (length(currentVelocity) == 0.0) {//no velocity
-                gl_FragColor = vec4(texture2D(u_material, fragCoord/u_textureSize).xy, 0, 0);
-                return;
-            }
-
-            vec2 pos = fragCoord - pxCenter - u_dt*currentVelocity;
-
-            if (pos.x >= u_textureSize.x-1.0) {
-                gl_FragColor = vec4(0, 0, 0, 0);
-                return;
-            }
-
-            //periodic boundary in y
-            if (pos.y < 0.0) pos.y += u_textureSize.y-1.0;
-            if (pos.y >= u_textureSize.y-1.0) pos.y -= u_textureSize.y-1.0;
-
-            gl_FragColor = vec4(bilinearInterp(pos, u_material, u_textureSize), 0, 0);
-        }
-    </script>
-
-    <script id="advectShaderVel" type="x-shader/x-fragment">
-        precision mediump float;
-
-        uniform sampler2D u_velocity;
-        uniform sampler2D u_material;
-
-        uniform vec2 u_textureSize;
-        uniform float u_scale;
-
-        uniform float u_dt;
-
-        void main() {
-
-            vec2 fragCoord = gl_FragCoord.xy;
-
-            vec2 currentVelocity = u_scale*texture2D(u_velocity, fragCoord/u_textureSize).xy;
-
-            //implicitly solve advection
-
-            if (length(currentVelocity) == 0.0) {//boundary or no velocity
-                gl_FragColor = vec4(texture2D(u_material, fragCoord/u_textureSize).xy, 0, 0);
-                return;
-            }
-
-            vec2 pxCenter = vec2(0.5, 0.5);
-            vec2 pos = fragCoord - pxCenter - u_dt*currentVelocity;
-
-             if (pos.x < 1.0) {
-               gl_FragColor = vec4(1.0, 0, 0, 0);
-               return;
-            }
-            if (pos.x >= u_textureSize.x-1.0) {
-                gl_FragColor = vec4(0, 0, 0, 0);
-                //return;
-            }
-            if (pos.x >= u_textureSize.x-1.0) pos.x -= u_textureSize.x-1.0;
-
-            //periodic boundary in y
-            if (pos.y < 0.0) {
-                pos.y += u_textureSize.y-1.0;
-            }
-            if (pos.y >= u_textureSize.y-1.0) {
-                pos.y -= u_textureSize.y-1.0;
-            }
-
-            //bilinear interp between nearest cells
-            vec2 ceiled = ceil(pos);
-            vec2 floored = floor(pos);
-
-            vec2 n = texture2D(u_material, (ceiled+pxCenter)/u_textureSize).xy;//actually ne
-            vec2 s = texture2D(u_material, (floored+pxCenter)/u_textureSize).xy;//actually sw
-            if (ceiled.x != floored.x){
-                vec2 se = texture2D(u_material, (vec2(ceiled.x, floored.y)+pxCenter)/u_textureSize).xy;
-                vec2 nw = texture2D(u_material, (vec2(floored.x, ceiled.y)+pxCenter)/u_textureSize).xy;
-                n = n*(pos.x-floored.x) + nw*(ceiled.x-pos.x);
-                s = se*(pos.x-floored.x) + s*(ceiled.x-pos.x);
-            }
-            vec2 materialVal = n;
-            if (ceiled.y != floored.y){
-                materialVal = n*(pos.y-floored.y) + s*(ceiled.y-pos.y);
-            }
-
-            gl_FragColor = vec4(materialVal, 0, 0);
-        }
-    </script>
-
-    <script type="text/javascript" src="dependencies/jquery-3.1.0.min.js"></script>
-    <script type="text/javascript" src="dependencies/flat-ui.min.js"></script>
-
-    <script type="text/javascript" src="GlBoilerplate.js"></script>
-    <script type="text/javascript" src="GPUMath.js"></script>
+    <script type="text/javascript" src="public/js/jquery-3.1.0.min.js"></script>
+    <script type="text/javascript" src="public/js/flat-ui.min.js"></script>
+    <script type="text/javascript" src="src/core/GlBoilerplate.js"></script>
+    <script type="text/javascript" src="src/core/GPUMath.js"></script>
     <script type="text/javascript" src="main.js"></script>
+    <style>
+        .control-box {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .simulation-box {
+            margin: 20px auto;
+            text-align: center;
+        }
+        button {
+            margin: 5px;
+        }
+        .settings-modal {
+            display: none; /* 기본적으로 숨김 */
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            padding: 20px;
+            background: white;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+            border-radius: 10px;
+        }
+        .settings-modal h3 {
+            margin-top: 0;
+        }
+        .overlay {
+            display: none; /* 기본적으로 숨김 */
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        .slider-container {
+            margin-bottom: 15px;
+        }
+        .slider-container label {
+            display: block;
+            margin-bottom: 5px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -396,7 +77,85 @@
             <div class="simulation-box">
                 <canvas id="glcanvas"></canvas>
             </div>
+            <button id="toggleObstacle" class="btn btn-primary">Obstacle On/Off</button>
+            <button id="openSettings" class="btn btn-secondary">Options</button>
         </main>
     </div>
+
+    <!-- 옵션 설정 모달 -->
+    <div class="overlay" id="settingsOverlay"></div>
+    <div class="settings-modal" id="settingsModal">
+        <h3>Simulation Settings</h3>
+        <div class="slider-container">
+            <label for="speedSlider">Speed</label>
+            <input type="range" id="speedSlider" min="0" max="10" step="0.1" value="1">
+        </div>
+        <div class="slider-container">
+            <label for="densitySlider">Density</label>
+            <input type="range" id="densitySlider" min="0" max="10" step="0.1" value="1">
+        </div>
+        <div class="slider-container">
+            <label for="viscositySlider">Viscosity</label>
+            <input type="range" id="viscositySlider" min="0" max="10" step="0.1" value="1">
+        </div>
+        <div class="slider-container">
+            <label for="obstacleRadiusSlider">Obstacle Radius</label>
+            <input type="range" id="obstacleRadiusSlider" min="10" max="100" step="1" value="30">
+        </div>
+        <button id="defaultSettings" class="btn btn-info">Default</button>
+        <button id="closeSettings" class="btn btn-danger">Close</button>
+    </div>
+
+    <script>
+        // 모달 및 오버레이 요소
+        const settingsModal = document.getElementById('settingsModal');
+        const settingsOverlay = document.getElementById('settingsOverlay');
+
+        // 옵션 버튼 이벤트
+        document.getElementById('openSettings').addEventListener('click', function () {
+            settingsModal.style.display = 'block';
+            settingsOverlay.style.display = 'block';
+        });
+
+        // 닫기 버튼 이벤트
+        document.getElementById('closeSettings').addEventListener('click', function () {
+            settingsModal.style.display = 'none';
+            settingsOverlay.style.display = 'none';
+        });
+
+        // default 버튼 이벤트
+        document.getElementById('defaultSettings').addEventListener('click', function () {
+            speedSlider.value = 1;
+            densitySlider.value = 1;
+            viscositySlider.value = 1;
+            obstacleRadiusSlider.value = 30;
+        });
+
+        // 슬라이더 값 변경 이벤트
+        const speedSlider = document.getElementById('speedSlider');
+        const densitySlider = document.getElementById('densitySlider');
+        const viscositySlider = document.getElementById('viscositySlider');
+        const obstacleRadiusSlider = document.getElementById('obstacleRadiusSlider');
+
+        speedSlider.addEventListener('input', function () {
+            console.log('Speed:', speedSlider.value);
+            // 속도 값 업데이트 로직 추가
+        });
+
+        densitySlider.addEventListener('input', function () {
+            console.log('Density:', densitySlider.value);
+            // 밀도 값 업데이트 로직 추가
+        });
+
+        viscositySlider.addEventListener('input', function () {
+            console.log('Viscosity:', viscositySlider.value);
+            // 점도 값 업데이트 로직 추가
+        });
+
+        obstacleRadiusSlider.addEventListener('input', function () {
+            console.log('Obstacle Radius:', obstacleRadiusSlider.value);
+            // 장애물 반지름 값 업데이트 로직 추가
+        });
+    </script>
 </body>
 </html>

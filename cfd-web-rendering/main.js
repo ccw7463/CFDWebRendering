@@ -10,6 +10,8 @@ let lastMouseCoordinates =  [0,0]; // 마지막 마우스 좌표
 let mouseCoordinates =  [0,0]; // 현재 마우스 좌표
 let mouseEnable = false; // 마우스 입력 활성화 여부 
 
+let obstacleEnabled = true; // 장애물 활성화 상태 (기본값: 활성화)
+
 let paused = false; // 창 크기 조정 중 일시 정지 상태
 
 const dt = 1; // 시간 간격
@@ -21,8 +23,84 @@ var GPU;
 
 window.onload = initGL; // 페이지 로드 시 initGL 함수 호출
 
-function initGL() {
+// 쉐이더 로드
+async function loadShader(url) {
+    const response = await fetch(url);
+    const shaderSource = await response.text();
+    return shaderSource;
+}
+
+// 각종 쉐이더 초기화
+async function initShaders() {
+    const advectVelShaderSource = await loadShader('shaders/advectShaderVel.glsl');
+    const advectVelshaderScript = document.createElement('script');
+    advectVelshaderScript.id = 'advectShaderVel';
+    advectVelshaderScript.type = 'x-shader/x-fragment';
+    advectVelshaderScript.textContent = advectVelShaderSource;
+    document.head.appendChild(advectVelshaderScript);
+
+    const advectMatShaderSource = await loadShader('shaders/advectMat.glsl');
+    const advectMatshaderScript = document.createElement('script');
+    advectMatshaderScript.id = 'advectShaderMat';
+    advectMatshaderScript.type = 'x-shader/x-fragment';
+    advectMatshaderScript.textContent = advectMatShaderSource;
+    document.head.appendChild(advectMatshaderScript);
+
+    const jacobiShaderSource = await loadShader('shaders/jacobi.glsl');
+    const jacobiShaderScript = document.createElement('script');
+    jacobiShaderScript.id = 'jacobiShader';
+    jacobiShaderScript.type = 'x-shader/x-fragment';
+    jacobiShaderScript.textContent = jacobiShaderSource;
+    document.head.appendChild(jacobiShaderScript);
+
+    const forceShaderSource = await loadShader('shaders/force.glsl');
+    const forceShaderScript = document.createElement('script');
+    forceShaderScript.id = 'forceShader';
+    forceShaderScript.type = 'x-shader/x-fragment';
+    forceShaderScript.textContent = forceShaderSource;
+    document.head.appendChild(forceShaderScript);
+
+    const divergeShaderSource = await loadShader('shaders/diverge.glsl');
+    const divergeShaderScript = document.createElement('script');
+    divergeShaderScript.id = 'divergenceShader';
+    divergeShaderScript.type = 'x-shader/x-fragment';
+    divergeShaderScript.textContent = divergeShaderSource;
+    document.head.appendChild(divergeShaderScript);   
+
+    const gradientSubtractionShaderSource = await loadShader('shaders/gradientSubtraction.glsl');
+    const gradientSubtractionShaderScript = document.createElement('script');
+    gradientSubtractionShaderScript.id = 'gradientSubtractionShader';
+    gradientSubtractionShaderScript.type = 'x-shader/x-fragment';
+    gradientSubtractionShaderScript.textContent = gradientSubtractionShaderSource;
+    document.head.appendChild(gradientSubtractionShaderScript);   
+
+    const boundaryShaderSource = await loadShader('shaders/boundary.glsl');
+    const boundaryShaderScript = document.createElement('script');
+    boundaryShaderScript.id = 'boundaryConditionsShader';
+    boundaryShaderScript.type = 'x-shader/x-fragment';
+    boundaryShaderScript.textContent = boundaryShaderSource;
+    document.head.appendChild(boundaryShaderScript);   
+
+    const resetVelocityShaderSource = await loadShader('shaders/resetVelocity.glsl');
+    const resetVelocityShaderScript = document.createElement('script');
+    resetVelocityShaderScript.id = 'resetVelocityShader';
+    resetVelocityShaderScript.type = 'x-shader/x-fragment';
+    resetVelocityShaderScript.textContent = resetVelocityShaderSource;
+    document.head.appendChild(resetVelocityShaderScript);   
+
+    const renderShaderSource = await loadShader('shaders/render.glsl');
+    const renderShaderScript = document.createElement('script');
+    renderShaderScript.id = '2d-render-shader';
+    renderShaderScript.type = 'x-shader/x-fragment';
+    renderShaderScript.textContent = renderShaderSource;
+    document.head.appendChild(renderShaderScript);   
+}
+
+async function initGL() {
     canvas = document.getElementById("glcanvas"); // 캔버스 요소 가져오기
+
+    // 장애물 활성화/비활성화 버튼 클릭 이벤트 핸들러 설정
+    document.getElementById('toggleObstacle').addEventListener('click', toggleObstacle);
 
     // canvas에 마우스 및 터치 이벤트 핸들러 설정
     canvas.onmousemove = onMouseMove;
@@ -32,6 +110,9 @@ function initGL() {
 
     // 창 크기 조정 시 onResize 함수 호출
     window.onresize = onResize;
+
+    // 셰이더 초기화
+    await initShaders();
 
     // GPU 연산 초기화
     GPU = initGPUMath();
@@ -101,75 +182,96 @@ function resetWindow(){
     // 시뮬레이션 영역 너비 & 높이 
     actualWidth = canvas.clientWidth;
     actualHeight = canvas.clientHeight;
-    console.log(`${'-'.repeat(20)} resetWindow() 호출 ${'-'.repeat(20)}`)
-    console.log(`시뮬레이션 영역 너비 [actualWidth] : ${actualWidth}`);
-    console.log(`시뮬레이션 영역 높이 [actualHeight] : ${actualHeight}`);
 
     // 스케일값 지정 (시뮬레이션의 해상도를 조절하는 역할)
     // -> 값이 클수록 작은 영역에 대해 유체 해석함. GPU, CPU 사용량 감소
     var maxDim = Math.max(actualHeight, actualWidth);
     var scale = maxDim/200;
-    console.log(`시뮬레이션 스케일값 [scale] : ${scale}`);
 
     width = Math.floor(actualWidth/scale);
     height = Math.floor(actualHeight/scale);
-    console.log(`시뮬레이션 계산 너비 [width] : ${width}`);
-    console.log(`시뮬레이션 계산 높이 [height] : ${height}`);
 
     // 장애물 초기 위치 (너비의 1/10, 높이의 1/2)
     obstaclePosition = [actualWidth/2.5, actualHeight/2];
-    console.log(`obstaclePosition : ${obstaclePosition}`);
 
     // 드로잉 버퍼 사이즈를 실제 값과 맞춤
     canvas.width = actualWidth;
     canvas.height = actualHeight;
 
     GPU.setSize(width, height);
+
+    // advectVel
     GPU.setProgram("advectVel");
     GPU.setUniformForProgram("advectVel" ,"u_textureSize", [width, height], "2f");
     GPU.setUniformForProgram("advectVel" ,"u_scale", 1, "1f");
+
+    // advectMat
     GPU.setProgram("advectMat");
     GPU.setUniformForProgram("advectMat" ,"u_textureSize", [actualWidth, actualHeight], "2f");
     GPU.setUniformForProgram("advectMat" ,"u_scale", width/actualWidth, "1f");
+
+    // gradientSubtraction
     GPU.setProgram("gradientSubtraction");
     GPU.setUniformForProgram("gradientSubtraction" ,"u_textureSize", [width, height], "2f");
+
+    // diverge
     GPU.setProgram("diverge");
     GPU.setUniformForProgram("diverge" ,"u_textureSize", [width, height], "2f");
+
+    // force
     GPU.setProgram("force");
     GPU.setUniformForProgram("force", "u_reciprocalRadius", 0.1*scale, "1f");
     GPU.setUniformForProgram("force" ,"u_textureSize", [width, height], "2f");
+
+    // jacobi
     GPU.setProgram("jacobi");
     GPU.setUniformForProgram("jacobi" ,"u_textureSize", [width, height], "2f");
+
+    // render
     GPU.setProgram("render");
     GPU.setUniformForProgram("render" ,"u_obstaclePosition", [obstaclePosition[0], obstaclePosition[1]], "2f");
     GPU.setUniformForProgram("render" ,"u_textureSize", [actualWidth, actualHeight], "2f");
     GPU.setUniformForProgram("render" ,"u_obstacleRad", obstacleRad, "1f");
+
+    // boundary
     GPU.setProgram("boundary");
     GPU.setUniformForProgram("boundary" ,"u_textureSize", [width, height], "2f");
     GPU.setUniformForProgram("boundary" ,"u_obstaclePosition", [obstaclePosition[0]*width/actualWidth, obstaclePosition[1]*height/actualHeight], "2f");
     GPU.setUniformForProgram("boundary" ,"u_obstacleRad", obstacleRad*width/actualWidth, "1f");
 
-    GPU.initTextureFromData("velocity", width, height, "HALF_FLOAT", null, true);//velocity
+    // velocity
+    GPU.initTextureFromData("velocity", width, height, "HALF_FLOAT", null, true);
     GPU.initFrameBufferForTexture("velocity", true);
-    GPU.initTextureFromData("nextVelocity", width, height, "HALF_FLOAT", null, true);//velocity
+
+    // nextVelocity
+    GPU.initTextureFromData("nextVelocity", width, height, "HALF_FLOAT", null, true);
     GPU.initFrameBufferForTexture("nextVelocity", true);
 
+    // resetVelocity
     GPU.step("resetVelocity", [], "velocity");
     GPU.step("resetVelocity", [], "nextVelocity");
 
+    // velocityDivergence
     GPU.initTextureFromData("velocityDivergence", width, height, "HALF_FLOAT", new Uint16Array(width*height*4), true);
     GPU.initFrameBufferForTexture("velocityDivergence", true);
+
+    // pressure
     GPU.initTextureFromData("pressure", width, height, "HALF_FLOAT", new Uint16Array(width*height*4), true);
     GPU.initFrameBufferForTexture("pressure", true);
+
+    // nextPressure
     GPU.initTextureFromData("nextPressure", width, height, "HALF_FLOAT", new Uint16Array(width*height*4), true);
     GPU.initFrameBufferForTexture("nextPressure", true);
-    GPU.initTextureFromData("material", actualWidth, actualHeight, "HALF_FLOAT", null, true);//material
+
+    // material
+    GPU.initTextureFromData("material", actualWidth, actualHeight, "HALF_FLOAT", null, true);
     GPU.initFrameBufferForTexture("material", true);
-    GPU.initTextureFromData("nextMaterial", actualWidth, actualHeight, "HALF_FLOAT", null, true);//material
+
+    // nextMaterial
+    GPU.initTextureFromData("nextMaterial", actualWidth, actualHeight, "HALF_FLOAT", null, true);
     GPU.initFrameBufferForTexture("nextMaterial", true);
 
     paused = false;
-    console.log(`${'-'.repeat(20)} resetWindow() 종료 ${'-'.repeat(20)}`)
 }
 
 function render(){
@@ -181,21 +283,24 @@ function render(){
         GPU.setSize(width, height);
         GPU.step("advectVel", ["velocity", "velocity"], "nextVelocity");
         GPU.setProgram("boundary");
-        if (movingObstacle) GPU.setUniformForProgram("boundary" ,"u_obstaclePosition", [obstaclePosition[0]*width/actualWidth, obstaclePosition[1]*height/actualHeight], "2f");
+        if (movingObstacle) GPU.setUniformForProgram("boundary" ,"u_obstaclePosition", 
+            [obstaclePosition[0]*width/actualWidth, 
+            obstaclePosition[1]*height/actualHeight], 
+        "2f");
         GPU.setUniformForProgram("boundary", "u_scale", -1, "1f");
         GPU.step("boundary", ["nextVelocity"], "velocity");
 
         //apply force
-        if (mouseEnable){
-            GPU.setProgram("force");
-            GPU.setUniformForProgram("force", "u_mouseCoord", [mouseCoordinates[0]*width/actualWidth, mouseCoordinates[1]*height/actualHeight], "2f");
-            GPU.setUniformForProgram("force", "u_mouseDir", [2*(mouseCoordinates[0]-lastMouseCoordinates[0])/scale,
-                2*(mouseCoordinates[1]-lastMouseCoordinates[1])/scale], "2f");
-            GPU.step("force", ["velocity"], "nextVelocity");
-            GPU.setProgram("boundary");
-            GPU.setUniformForProgram("boundary", "u_scale", -1, "1f");
-            GPU.step("boundary", ["nextVelocity"], "velocity");
-        }
+        // if (mouseEnable){
+        //     GPU.setProgram("force");
+        //     GPU.setUniformForProgram("force", "u_mouseCoord", [mouseCoordinates[0]*width/actualWidth, mouseCoordinates[1]*height/actualHeight], "2f");
+        //     GPU.setUniformForProgram("force", "u_mouseDir", [2*(mouseCoordinates[0]-lastMouseCoordinates[0])/scale,
+        //         2*(mouseCoordinates[1]-lastMouseCoordinates[1])/scale], "2f");
+        //     GPU.step("force", ["velocity"], "nextVelocity");
+        //     GPU.setProgram("boundary");
+        //     GPU.setUniformForProgram("boundary", "u_scale", -1, "1f");
+        //     GPU.step("boundary", ["nextVelocity"], "velocity");
+        // }
 
         // compute pressure
         GPU.step("diverge", ["velocity"], "velocityDivergence");//calc velocity divergence
@@ -220,22 +325,56 @@ function render(){
         // move material
         GPU.setSize(actualWidth, actualHeight);
         GPU.step("advectMat", ["velocity", "material"], "nextMaterial");
+        
         if (movingObstacle) {
             GPU.setProgram("boundary");
             GPU.setUniformForProgram("boundary", "u_obstaclePosition", 
                 [obstaclePosition[0]*width/actualWidth, 
-                 obstaclePosition[1]*height/actualHeight], "2f");
+                obstaclePosition[1]*height/actualHeight], 
+            "2f");
             
             GPU.setProgram("render");
             GPU.setUniformForProgram("render", "u_obstaclePosition", 
-                [obstaclePosition[0], obstaclePosition[1]], "2f");
+                [obstaclePosition[0], 
+                obstaclePosition[1]], 
+            "2f");
+        } 
+        
+        if (obstacleEnabled) {
+            // 장애물이 활성화된 경우
+            GPU.setProgram("boundary");
+            GPU.setUniformForProgram("boundary", "u_obstaclePosition", 
+                [obstaclePosition[0]*width/actualWidth, 
+                obstaclePosition[1]*height/actualHeight], 
+            "2f");
+            GPU.setProgram("render");
+            GPU.setUniformForProgram("render", "u_obstaclePosition", 
+                [obstaclePosition[0], 
+                obstaclePosition[1]], 
+            "2f");
+        } else {
+            // 장애물이 비활성화된 경우
+            GPU.setProgram("boundary");
+            GPU.setUniformForProgram("boundary", "u_obstaclePosition", 
+                [-9999, -9999], 
+            "2f");
+            GPU.setProgram("render");
+            GPU.setUniformForProgram("render", "u_obstaclePosition", 
+                [-9999, -9999], 
+            "2f");
         }
+        
         GPU.step("render", ["nextMaterial"]);
         GPU.swapTextures("nextMaterial", "material");
 
     } else resetWindow();
 
     window.requestAnimationFrame(render);
+}
+
+// 장애물 상태를 토글하는 함수
+function toggleObstacle() {
+    obstacleEnabled = !obstacleEnabled;
 }
 
 // 장애물 위치 업데이트 함수

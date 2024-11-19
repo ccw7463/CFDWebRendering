@@ -192,7 +192,7 @@ function render(){
             GPU.setUniformForProgram("force", "u_mouseDir", [2*(mouseCoordinates[0]-lastMouseCoordinates[0])/scale,
                 2*(mouseCoordinates[1]-lastMouseCoordinates[1])/scale], "2f");
             GPU.step("force", ["velocity"], "nextVelocity");
-             GPU.setProgram("boundary");
+            GPU.setProgram("boundary");
             GPU.setUniformForProgram("boundary", "u_scale", -1, "1f");
             GPU.step("boundary", ["nextVelocity"], "velocity");
         }

@@ -19,9 +19,9 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('defaultSettings').addEventListener('click', function () {
         updateSliderValues({
             speed: 1,
-            density: 1,
+            rho: 1,
             viscosity: 1,
-            obstacleRadius: 30
+            obstacleRad: 30
         });
     });
 
@@ -33,7 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     densitySlider.addEventListener('input', function () {
         console.log('Density:', densitySlider.value);
-        // 밀도 값 업데이트 로직 추가
+        updateSliderValues({rho:this.value});
     });
 
     viscositySlider.addEventListener('input', function () {
@@ -43,28 +43,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
     obstacleRadiusSlider.addEventListener('input', function () {
         console.log('Obstacle Radius:', obstacleRadiusSlider.value);
-        updateSliderValues({obstacleRadius: this.value});
+        updateSliderValues({obstacleRad:this.value});
     });
 
     // 업데이트 함수
     const updateSliderValues = (values) => {
-        console.log(`values.speed : ${values.speed}`);
         if (values.speed !== undefined) {
             speedSlider.value = values.speed;
             console.log('Speed:', values.speed);
         }
-        if (values.density !== undefined) {
-            densitySlider.value = values.density;
-            console.log('Density:', values.density);
+        if (values.rho !== undefined) {
+            densitySlider.value = values.rho;
+            console.log('Density:', values.rho);
+            window.updateProperties({rho:values.rho});
         }
         if (values.viscosity !== undefined) {
             viscositySlider.value = values.viscosity;
             console.log('Viscosity:', values.viscosity);
         }
-        if (values.obstacleRadius !== undefined) {
-            obstacleRadiusSlider.value = values.obstacleRadius;
-            console.log('Obstacle Radius:', values.obstacleRadius);
-            window.updateObstacleRadius(values.obstacleRadius);
+        if (values.obstacleRad !== undefined) {
+            obstacleRadiusSlider.value = values.obstacleRad;
+            console.log('Obstacle Radius:', values.obstacleRad);
+            window.updateProperties({obstacleRad:values.obstacleRad});
         }
     };
 });

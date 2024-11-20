@@ -20,20 +20,21 @@ let mouseEnable = false; // 마우스 입력 활성화 여부
 const dt = 1; // 시간 간격
 const dx = 1; // 공간 간격
 const nu = 1; // 점성 계수
-const rho = 1; // 밀도
+let rho = 1; // 밀도
 var GPU;
 window.onload = initGL; // 페이지 로드 시 initGL 함수 호출
-window.updateObstacleRadius = updateObstacleRadius;
+window.updateProperties = updateProperties;
 
-
-function updateObstacleRadius(newRadius) {
-    obstacleRad = Number(newRadius);
-    GPU.setProgram("render");
-    GPU.setUniformForProgram("render", "u_obstacleRad", obstacleRad, "1f");
-    GPU.setProgram("boundary");
-    GPU.setUniformForProgram("boundary", "u_obstacleRad", obstacleRad*width/actualWidth, "1f");
+function updateProperties(values) {
+    if (values.rho !== undefined) {
+        rho = Number(values.rho);
+        resetWindow();
+    }
+    if (values.obstacleRad !== undefined) {
+        obstacleRad = Number(values.obstacleRad);
+        resetWindow();
+    }
 }
-
 
 // 쉐이더 로드
 async function loadShader(url) {
@@ -109,6 +110,7 @@ async function initShaders() {
 }
 
 async function initGL() {
+    console.log(`initGL 함수 호출`);
     canvas = document.getElementById("glcanvas"); // 캔버스 요소 가져오기
 
     // 장애물 활성화/비활성화 버튼 클릭 이벤트 핸들러 설정
@@ -146,13 +148,15 @@ async function initGL() {
 
     // gradientSubtraction
     GPU.createProgram("gradientSubtraction", "2d-vertex-shader", "gradientSubtractionShader");
-    GPU.setUniformForProgram("gradientSubtraction", "u_const", 0.5/dx, "1f");//dt/(2*rho*dx)
+    // GPU.setUniformForProgram("gradientSubtraction", "u_const", 0.5/dx, "1f"); // dt, rho = 1일 경우 단순화하여 지정 
+    GPU.setUniformForProgram("gradientSubtraction", "u_const", dt/(2*rho*dx), "1f");
     GPU.setUniformForProgram("gradientSubtraction", "u_velocity", 0, "1i");
     GPU.setUniformForProgram("gradientSubtraction", "u_pressure", 1, "1i");
 
     // diverge
     GPU.createProgram("diverge", "2d-vertex-shader", "divergenceShader");
-    GPU.setUniformForProgram("diverge", "u_const", 0.5/dx, "1f");//-2*dx*rho/dt
+    // GPU.setUniformForProgram("diverge", "u_const", 0.5/dx, "1f"); // dt, rho = 1일 경우 단순화하여 지정 
+    GPU.setUniformForProgram("diverge", "u_const", dt/(2*rho*dx), "1f");
     GPU.setUniformForProgram("diverge", "u_velocity", 0, "1i");
 
     // force
@@ -224,10 +228,14 @@ function resetWindow(){
 
     // gradientSubtraction
     GPU.setProgram("gradientSubtraction");
+    GPU.setUniformForProgram("gradientSubtraction", "u_velocity", 0, "1i");
+    GPU.setUniformForProgram("gradientSubtraction", "u_pressure", 1, "1i");
     GPU.setUniformForProgram("gradientSubtraction" ,"u_textureSize", [width, height], "2f");
 
     // diverge
     GPU.setProgram("diverge");
+    GPU.setUniformForProgram("diverge", "u_const", dt/(2*rho*dx), "1f");
+    GPU.setUniformForProgram("diverge", "u_velocity", 0, "1i");
     GPU.setUniformForProgram("diverge" ,"u_textureSize", [width, height], "2f");
 
     // force
@@ -241,15 +249,23 @@ function resetWindow(){
 
     // render
     GPU.setProgram("render");
-    GPU.setUniformForProgram("render" ,"u_obstaclePosition", [obstaclePosition[0], obstaclePosition[1]], "2f");
-    GPU.setUniformForProgram("render" ,"u_textureSize", [actualWidth, actualHeight], "2f");
-    GPU.setUniformForProgram("render" ,"u_obstacleRad", obstacleRad, "1f");
+    GPU.setUniformForProgram("render", "u_obstaclePosition", [obstaclePosition[0], obstaclePosition[1]], "2f");
+    GPU.setUniformForProgram("render", "u_textureSize", [actualWidth, actualHeight], "2f");
+    GPU.setUniformForProgram("render", "u_obstacleRad", obstacleRad, "1f");
 
     // boundary
     GPU.setProgram("boundary");
-    GPU.setUniformForProgram("boundary" ,"u_textureSize", [width, height], "2f");
-    GPU.setUniformForProgram("boundary" ,"u_obstaclePosition", [obstaclePosition[0]*width/actualWidth, obstaclePosition[1]*height/actualHeight], "2f");
-    GPU.setUniformForProgram("boundary" ,"u_obstacleRad", obstacleRad*width/actualWidth, "1f");
+    GPU.setUniformForProgram("boundary", "u_textureSize", [width, height], "2f");
+    GPU.setUniformForProgram("boundary", "u_obstaclePosition", [obstaclePosition[0]*width/actualWidth, obstaclePosition[1]*height/actualHeight], "2f");
+    GPU.setUniformForProgram("boundary", "u_obstacleRad", obstacleRad*width/actualWidth, "1f");
+
+    // var velocity = new Uint16Array(width*height*4);
+    // for (var i=0;i<height;i++){
+    //     for (var j=0;j<width;j++){
+    //         var index = 4*(i*width+j);
+    //         velocity[index] = toHalf(1);
+    //     }
+    // }
 
     // velocity
     GPU.initTextureFromData("velocity", width, height, "HALF_FLOAT", null, true);
@@ -301,6 +317,16 @@ function render(){
         "2f");
         GPU.setUniformForProgram("boundary", "u_scale", -1, "1f");
         GPU.step("boundary", ["nextVelocity"], "velocity");
+
+        // diffuse velocity
+        GPU.setProgram("jacobi");
+        var alpha = dx*dx/(nu*dt);
+        GPU.setUniformForProgram("jacobi", "u_alpha", alpha, "1f");
+        GPU.setUniformForProgram("jacobi", "u_reciprocalBeta", 1/(4+alpha), "1f");
+        for (var i=0;i<1;i++){
+            GPU.step("jacobi", ["velocity", "velocity"], "nextVelocity");
+            GPU.step("jacobi", ["nextVelocity", "nextVelocity"], "velocity");
+        }
 
         //apply force
         // if (mouseEnable){

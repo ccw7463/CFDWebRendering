@@ -1,27 +1,39 @@
+// 시뮬레이션 영역 관련 설정
+const scale = 3.5; // 스케일값
 let width, height; // 시뮬레이션 너비와 높이
 let actualWidth, actualHeight; // 실제 화면 너비와 높이
-const scale = 3.5; // 스케일값
+let paused = false; // 창 크기 조정 중 일시 정지 상태
 
+// 장애물 관련 설정
+let obstacleRad = 30; // 장애물 반지름
 let obstaclePosition = [0,0]; // 장애물 위치
-const obstacleRad = 30; // 장애물 반지름
 let movingObstacle = false; // 장애물 움직이는지 여부
+let obstacleEnabled = true; // 장애물 활성화 상태 (기본값: 활성화)
 
+
+// 마우스 관련 설정
 let lastMouseCoordinates =  [0,0]; // 마지막 마우스 좌표
 let mouseCoordinates =  [0,0]; // 현재 마우스 좌표
 let mouseEnable = false; // 마우스 입력 활성화 여부 
 
-let obstacleEnabled = true; // 장애물 활성화 상태 (기본값: 활성화)
-
-let paused = false; // 창 크기 조정 중 일시 정지 상태
-
+// 시뮬레이션 관련 설정
 const dt = 1; // 시간 간격
 const dx = 1; // 공간 간격
 const nu = 1; // 점성 계수
 const rho = 1; // 밀도
-
 var GPU;
-
 window.onload = initGL; // 페이지 로드 시 initGL 함수 호출
+window.updateObstacleRadius = updateObstacleRadius;
+
+
+function updateObstacleRadius(newRadius) {
+    obstacleRad = Number(newRadius);
+    GPU.setProgram("render");
+    GPU.setUniformForProgram("render", "u_obstacleRad", obstacleRad, "1f");
+    GPU.setProgram("boundary");
+    GPU.setUniformForProgram("boundary", "u_obstacleRad", obstacleRad*width/actualWidth, "1f");
+}
+
 
 // 쉐이더 로드
 async function loadShader(url) {

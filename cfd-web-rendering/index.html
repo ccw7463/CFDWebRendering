@@ -19,52 +19,7 @@
     <script type="text/javascript" src="src/core/GlBoilerplate.js"></script>
     <script type="text/javascript" src="src/core/GPUMath.js"></script>
     <script type="text/javascript" src="main.js"></script>
-    <style>
-        .control-box {
-            margin-top: 20px;
-            text-align: center;
-        }
-        .simulation-box {
-            margin: 20px auto;
-            text-align: center;
-        }
-        button {
-            margin: 5px;
-        }
-        .settings-modal {
-            display: none; /* 기본적으로 숨김 */
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 300px;
-            padding: 20px;
-            background: white;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            z-index: 1000;
-            border-radius: 10px;
-        }
-        .settings-modal h3 {
-            margin-top: 0;
-        }
-        .overlay {
-            display: none; /* 기본적으로 숨김 */
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 999;
-        }
-        .slider-container {
-            margin-bottom: 15px;
-        }
-        .slider-container label {
-            display: block;
-            margin-bottom: 5px;
-        }
-    </style>
+    <script type="text/javascript" src="public/js/modal.js"></script>
 </head>
 <body>
     <div class="container">
@@ -83,7 +38,6 @@
     </div>
 
     <!-- 옵션 설정 모달 -->
-    <div class="overlay" id="settingsOverlay"></div>
     <div class="settings-modal" id="settingsModal">
         <h3>Simulation Settings</h6>
         <div class="slider-container">
@@ -105,57 +59,5 @@
         <button id="defaultSettings" class="btn btn-info">Default</button>
         <button id="closeSettings" class="btn btn-danger">Close</button>
     </div>
-
-    <script>
-        // 모달 및 오버레이 요소
-        const settingsModal = document.getElementById('settingsModal');
-        const settingsOverlay = document.getElementById('settingsOverlay');
-
-        // 옵션 버튼 이벤트
-        document.getElementById('openSettings').addEventListener('click', function () {
-            settingsModal.style.display = 'block';
-            settingsOverlay.style.display = 'block';
-        });
-
-        // 닫기 버튼 이벤트
-        document.getElementById('closeSettings').addEventListener('click', function () {
-            settingsModal.style.display = 'none';
-            settingsOverlay.style.display = 'none';
-        });
-
-        // default 버튼 이벤트
-        document.getElementById('defaultSettings').addEventListener('click', function () {
-            speedSlider.value = 1;
-            densitySlider.value = 1;
-            viscositySlider.value = 1;
-            obstacleRadiusSlider.value = 30;
-        });
-
-        // 슬라이더 값 변경 이벤트
-        const speedSlider = document.getElementById('speedSlider');
-        const densitySlider = document.getElementById('densitySlider');
-        const viscositySlider = document.getElementById('viscositySlider');
-        const obstacleRadiusSlider = document.getElementById('obstacleRadiusSlider');
-
-        speedSlider.addEventListener('input', function () {
-            console.log('Speed:', speedSlider.value);
-            // 속도 값 업데이트 로직 추가
-        });
-
-        densitySlider.addEventListener('input', function () {
-            console.log('Density:', densitySlider.value);
-            // 밀도 값 업데이트 로직 추가
-        });
-
-        viscositySlider.addEventListener('input', function () {
-            console.log('Viscosity:', viscositySlider.value);
-            // 점도 값 업데이트 로직 추가
-        });
-
-        obstacleRadiusSlider.addEventListener('input', function () {
-            console.log('Obstacle Radius:', obstacleRadiusSlider.value);
-            // 장애물 반지름 값 업데이트 로직 추가
-        });
-    </script>
 </body>
 </html>

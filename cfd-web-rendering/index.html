@@ -32,8 +32,8 @@
             <div class="simulation-box">
                 <canvas id="glcanvas"></canvas>
             </div>
-            <button id="toggleObstacle" class="btn btn-primary">Obstacle On/Off</button>
-            <button id="openSettings" class="btn btn-secondary">Options</button>
+            <button id="toggleObstacle">Obstacle On/Off</button>
+            <button id="openSettings">Options</button>
         </main>
     </div>
 
@@ -42,14 +42,9 @@
         <div class="modal-header">
             <h6>Simulation Settings</h6>
             <div class="slider-container">
-                <label for="dtSlider">Time Step</label>
+                <label for="dtSlider">Speed</label>
                 <input type="range" id="dtSlider" min="0.1" max="2" step="0.1" value="1">
                 <input type="number" id="dtValue" min="0.1" max="2" step="0.1" value="1" onchange="syncSlider('dtSlider', this.value)">
-            </div>
-            <div class="slider-container">
-                <label for="speedSlider">Speed</label>
-                <input type="range" id="speedSlider" min="0" max="10" step="0.1" value="1">
-                <input type="number" id="speedValue" min="0" max="10" step="0.1" value="1" onchange="syncSlider('speedSlider', this.value)">
             </div>
             <div class="slider-container">
                 <label for="densitySlider">Density</label>
@@ -59,15 +54,15 @@
             <div class="slider-container">
                 <label for="viscositySlider">Viscosity</label>
                 <input type="range" id="viscositySlider" min="0" max="100" step="1" value="1">
-                <input type="number" id="viscosityValue" min="0" max="100" step="1" value="1" onchange="syncSlider('viscositySlider', this.value)">
+                <input type="number" id="viscosityValue" min="0" max="100" step="0.5" value="1" onchange="syncSlider('viscositySlider', this.value)">
             </div>
             <div class="slider-container">
                 <label for="obstacleRadiusSlider">Obstacle Radius</label>
                 <input type="range" id="obstacleRadiusSlider" min="10" max="100" step="1" value="30">
                 <input type="number" id="obstacleRadiusValue" min="10" max="100" step="1" value="30" onchange="syncSlider('obstacleRadiusSlider', this.value)">
             </div>
-            <button id="defaultSettings" class="btn btn-info">Default</button>
-            <button id="closeSettings" class="btn btn-danger">Close</button>
+            <button id="defaultSettings">Default</button>
+            <button id="closeSettings">Close</button>
         </div>
     </div>
 </body>

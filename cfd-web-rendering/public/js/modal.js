@@ -2,8 +2,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const settingsModal = document.getElementById('settingsModal');
     const dtSlider = document.getElementById('dtSlider');
     const dtValue = document.getElementById('dtValue');
-    const speedSlider = document.getElementById('speedSlider');
-    const speedValue = document.getElementById('speedValue');
     const densitySlider = document.getElementById('densitySlider');
     const densityValue = document.getElementById('densityValue');
     const viscositySlider = document.getElementById('viscositySlider');
@@ -36,13 +34,11 @@ document.addEventListener('DOMContentLoaded', function() {
     // default 버튼 이벤트
     document.getElementById('defaultSettings').addEventListener('click', function () {
         dtSlider.value = 1;
-        speedSlider.value = 1;
         densitySlider.value = 1;
         viscositySlider.value = 1;
         obstacleRadiusSlider.value = 30;
         window.updateProperties({
             dt: 1,
-            speed: 1,
             rho: 1,
             mu: 1,
             obstacleRad: 30
@@ -70,16 +66,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
     dtValue.addEventListener('change', function () {
         syncSlider(dtSlider, dtValue);
-    });
-
-    // Speed 슬라이더 이벤트
-    speedSlider.addEventListener('input', function () {
-        syncInput(speedValue, speedSlider);
-        // 속도 값 업데이트 로직 추가
-    });
-
-    speedValue.addEventListener('change', function () {
-        syncSlider(speedSlider, speedValue);
     });
 
     // Density 슬라이더 이벤트

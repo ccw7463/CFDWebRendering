@@ -17,14 +17,15 @@ let mouseCoordinates =  [0,0]; // 현재 마우스 좌표
 let mouseEnable = false; // 마우스 입력 활성화 여부 
 
 // 시뮬레이션 관련 설정
-let dt = 1; // 시간 간격
 const dx = 1; // 공간 간격
+let dt = 1; // 시간 간격
 let mu = 1; // 점성 계수
 let rho = 1; // 밀도
 
 var GPU;
 window.onload = initGL; // 페이지 로드 시 initGL 함수 호출
 window.updateProperties = updateProperties;
+
 
 // 특성값 업데이트
 function updateProperties(values) {
@@ -276,13 +277,13 @@ function resetWindow(){
     GPU.setUniformForProgram("boundary", "u_obstaclePosition", [obstaclePosition[0]*width/actualWidth, obstaclePosition[1]*height/actualHeight], "2f");
     GPU.setUniformForProgram("boundary", "u_obstacleRad", obstacleRad*width/actualWidth, "1f");
 
-    // var velocity = new Uint16Array(width*height*4);
-    // for (var i=0;i<height;i++){
-    //     for (var j=0;j<width;j++){
-    //         var index = 4*(i*width+j);
-    //         velocity[index] = toHalf(1);
-    //     }
-    // }
+    var velocity = new Uint16Array(width*height*4);
+    for (var i=0;i<height;i++){
+        for (var j=0;j<width;j++){
+            var index = 4*(i*width+j);
+            velocity[index] = 10.0;
+        }
+    }
 
     // velocity
     GPU.initTextureFromData("velocity", width, height, "HALF_FLOAT", null, true);
@@ -308,6 +309,18 @@ function resetWindow(){
     // nextPressure
     GPU.initTextureFromData("nextPressure", width, height, "HALF_FLOAT", new Uint16Array(width*height*4), true);
     GPU.initFrameBufferForTexture("nextPressure", true);
+
+    // var numCols = Math.floor(actualHeight/10);
+    // if (numCols%2 == 1) numCols--;
+    // var numPx = actualHeight/numCols;
+
+    // var material = new Uint16Array(actualWidth*actualHeight*4);
+    // for (var i=0;i<actualHeight;i++){
+    //     for (var j=0;j<actualWidth;j++){
+    //         var index = 4*(i*actualWidth+j);
+    //         if (j==0 && Math.floor((i-2)/numPx)%2==0) material[index] = 1.0;
+    //     }
+    // }
 
     // material
     GPU.initTextureFromData("material", actualWidth, actualHeight, "HALF_FLOAT", null, true);

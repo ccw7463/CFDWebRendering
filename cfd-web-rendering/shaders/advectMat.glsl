@@ -59,7 +59,7 @@ void main() {
     vec2 pos = fragCoord - pxCenter - u_dt*currentVelocity;
 
     if (pos.x >= u_textureSize.x-1.0) {
-        gl_FragColor = vec4(0, 0, 0, 0);
+        gl_FragColor = vec4(1, 0, 0, 0);
         return;
     }
 

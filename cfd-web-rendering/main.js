@@ -17,14 +17,16 @@ let mouseCoordinates =  [0,0]; // 현재 마우스 좌표
 let mouseEnable = false; // 마우스 입력 활성화 여부 
 
 // 시뮬레이션 관련 설정
-const dt = 1; // 시간 간격
+let dt = 1; // 시간 간격
 const dx = 1; // 공간 간격
-const nu = 1; // 점성 계수
+let mu = 1; // 점성 계수
 let rho = 1; // 밀도
+
 var GPU;
 window.onload = initGL; // 페이지 로드 시 initGL 함수 호출
 window.updateProperties = updateProperties;
 
+// 특성값 업데이트
 function updateProperties(values) {
     if (values.rho !== undefined) {
         rho = Number(values.rho);
@@ -34,6 +36,25 @@ function updateProperties(values) {
         obstacleRad = Number(values.obstacleRad);
         resetWindow();
     }
+    if (values.mu !== undefined) {
+        mu = Number(values.mu);
+        resetWindow();
+    }
+    if (values.dt !== undefined) {
+        dt = Number(values.dt);
+        GPU.setProgram("advectVel", "2d-vertex-shader", "advectShaderVel");
+        GPU.setUniformForProgram("advectVel", "u_dt", dt, "1f");
+        GPU.setProgram("advectMat", "2d-vertex-shader", "advectShaderMat");
+        GPU.setUniformForProgram("advectMat", "u_dt", dt, "1f");
+        GPU.setProgram("gradientSubtraction", "2d-vertex-shader", "gradientSubtractionShader");
+        GPU.setUniformForProgram("gradientSubtraction", "u_const", dt/(2*rho*dx), "1f");
+        GPU.setProgram("diverge", "2d-vertex-shader", "divergenceShader");
+        GPU.setUniformForProgram("diverge", "u_const", dt/(2*rho*dx), "1f");
+        GPU.setProgram("force", "2d-vertex-shader", "forceShader");
+        GPU.setUniformForProgram("force", "u_dt", dt, "1f");
+        resetWindow();
+    }
+    
 }
 
 // 쉐이더 로드
@@ -110,7 +131,6 @@ async function initShaders() {
 }
 
 async function initGL() {
-    console.log(`initGL 함수 호출`);
     canvas = document.getElementById("glcanvas"); // 캔버스 요소 가져오기
 
     // 장애물 활성화/비활성화 버튼 클릭 이벤트 핸들러 설정
@@ -148,14 +168,12 @@ async function initGL() {
 
     // gradientSubtraction
     GPU.createProgram("gradientSubtraction", "2d-vertex-shader", "gradientSubtractionShader");
-    // GPU.setUniformForProgram("gradientSubtraction", "u_const", 0.5/dx, "1f"); // dt, rho = 1일 경우 단순화하여 지정 
     GPU.setUniformForProgram("gradientSubtraction", "u_const", dt/(2*rho*dx), "1f");
     GPU.setUniformForProgram("gradientSubtraction", "u_velocity", 0, "1i");
     GPU.setUniformForProgram("gradientSubtraction", "u_pressure", 1, "1i");
 
     // diverge
     GPU.createProgram("diverge", "2d-vertex-shader", "divergenceShader");
-    // GPU.setUniformForProgram("diverge", "u_const", 0.5/dx, "1f"); // dt, rho = 1일 경우 단순화하여 지정 
     GPU.setUniformForProgram("diverge", "u_const", dt/(2*rho*dx), "1f");
     GPU.setUniformForProgram("diverge", "u_velocity", 0, "1i");
 
@@ -194,7 +212,6 @@ function onResize(){
 }
 
 function resetWindow(){
-
     // 시뮬레이션 영역 너비 & 높이 
     actualWidth = canvas.clientWidth;
     actualHeight = canvas.clientHeight;
@@ -208,7 +225,7 @@ function resetWindow(){
     height = Math.floor(actualHeight/scale);
 
     // 장애물 초기 위치 (너비의 1/10, 높이의 1/2)
-    obstaclePosition = [actualWidth/2.5, actualHeight/2];
+    obstaclePosition = [actualWidth/5, actualHeight/2];
 
     // 드로잉 버퍼 사이즈를 실제 값과 맞춤
     canvas.width = actualWidth;
@@ -269,6 +286,7 @@ function resetWindow(){
 
     // velocity
     GPU.initTextureFromData("velocity", width, height, "HALF_FLOAT", null, true);
+    GPU.setProgram("force");
     GPU.initFrameBufferForTexture("velocity", true);
 
     // nextVelocity
@@ -303,10 +321,9 @@ function resetWindow(){
 }
 
 function render(){
-
     // paused 가 아니면 (paused 인 경우는 화면 리사이즈만 해당됨.)
     if (!paused) {
-
+        
         // 속도 설정
         GPU.setSize(width, height);
         GPU.step("advectVel", ["velocity", "velocity"], "nextVelocity");
@@ -320,10 +337,10 @@ function render(){
 
         // diffuse velocity
         GPU.setProgram("jacobi");
-        var alpha = dx*dx/(nu*dt);
+        var alpha = dx*dx/((mu/rho)*dt);
         GPU.setUniformForProgram("jacobi", "u_alpha", alpha, "1f");
         GPU.setUniformForProgram("jacobi", "u_reciprocalBeta", 1/(4+alpha), "1f");
-        for (var i=0;i<1;i++){
+        for (var i=0;i<10;i++){
             GPU.step("jacobi", ["velocity", "velocity"], "nextVelocity");
             GPU.step("jacobi", ["nextVelocity", "nextVelocity"], "velocity");
         }
